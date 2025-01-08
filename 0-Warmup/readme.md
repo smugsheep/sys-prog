@@ -22,4 +22,4 @@
 
 5. Briefly describe any concerns you might be having with being successful in this class (if any).
 
-    - I do not have any concerns with this at the moment!
+    - I personally feel a bit unsure on my skills in C, and also with the fact that I have not taken CS281 (even though it is not a pre-req for this class). However, I will do my best to succeed in this class!
