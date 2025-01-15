@@ -17,10 +17,42 @@ int  count_words(char *, int, int);
 
 int setup_buff(char *buff, char *user_str, int len){
     //TODO: #4:  Implement the setup buff as per the directions
+    int str_len = 0;
+    int last_was_space = 1;
 
-    
+    // copy string by looping thru each char
+    while (*user_str) {
+        if (str_len > len) return -1; // error: provided string is too long
+        
+        if (*user_str == ' ' || *user_str == '\t') { // handle whitespaces
+            if (!last_was_space) { // add whitespace if not duplicate
+                *buff++ = ' ';
+                str_len++;
+            }
+            last_was_space = 1;
+        } else { // else copy char to buffer
+            *buff++ = *user_str;
+            str_len++;
+            last_was_space = 0;
+        }
 
-    return 0; //for now just so the code compiles. 
+        user_str++;
+    }
+
+    // delete any trailing space
+    if (str_len > 0 && *(buff - 1) == ' ') {
+        buff--;
+        str_len--;
+    }
+
+    // fill rest of buffer with periods
+    int cur_str_len = str_len;
+    while (cur_str_len < len) {
+        *buff++ = '.';
+        cur_str_len++;
+    }
+
+    return str_len;
 }
 
 void print_buff(char *buff, int len){
@@ -37,11 +69,66 @@ void usage(char *exename){
 }
 
 int count_words(char *buff, int len, int str_len){
-    //YOU MUST IMPLEMENT
-    return 0;
+    if (str_len > len) return -1;
+    int word_count = 0;
+    
+    // count spaces in buff
+    for (int i = 0; i < str_len; i++) {
+        if (*buff == ' ') word_count++;
+        buff++;
+    }
+
+    return word_count++;
 }
 
 //ADD OTHER HELPER FUNCTIONS HERE FOR OTHER REQUIRED PROGRAM OPTIONS
+
+char *get_reverse(char *buff, int str_len) {
+    char *reverse = (char *) malloc(str_len+1 * sizeof(char));
+
+    if (reverse == NULL) {
+        return NULL;
+    }
+
+    // copy end of buff letters to start of new reverse string
+    char *start = reverse;
+    char *end = buff + str_len - 1;
+    while (end >= buff) {
+        *start = *end;
+        start++;
+        end--;
+    }
+
+    *start = '\0';
+    return reverse;
+}
+
+void print_words(char *buff, int str_len) {
+    int wc = 1;
+    int cur_len = 0;
+
+    if (str_len < 0) return;
+
+    printf("Word Print\n");
+    printf("----------\n");
+    printf("1. ");
+
+    // print each non-whitespace character in buff one by one,
+    // keep track of length, print length and go to new line if space
+    for (int i = 0; i < str_len; i++) {
+        if (*buff != ' ') {
+            putchar(*buff);
+            cur_len++;
+        } else {
+            printf(" (%d)", cur_len);
+            printf("\n%d. ", ++wc);
+            cur_len = 0;
+        }
+        buff++;
+    }
+    
+    printf(" (%d)\n", cur_len);
+}
 
 int main(int argc, char *argv[]){
 
@@ -116,6 +203,25 @@ int main(int argc, char *argv[]){
 
         //TODO:  #5 Implement the other cases for 'r' and 'w' by extending
         //       the case statement options
+
+        case 'r':
+            char *reversed = get_reverse(buff, user_str_len);
+            if (reversed == NULL) {
+                printf("Error reversing string");
+                exit(2);
+            }
+            printf("Reversed String: %s\n", reversed);
+            break;
+        case 'w':
+            print_words(buff, user_str_len);
+            break;
+        case 'x':
+            if (argc < 5) {
+                usage(argv[0]);
+                exit(1);
+            }
+            printf("Not Implemented!\n");
+            exit(8);
         default:
             usage(argv[0]);
             exit(1);
@@ -123,6 +229,7 @@ int main(int argc, char *argv[]){
 
     //TODO:  #6 Dont forget to free your buffer before exiting
     print_buff(buff,BUFFER_SZ);
+    free(buff);
     exit(0);
 }
 
@@ -131,5 +238,7 @@ int main(int argc, char *argv[]){
 //          do you think providing both the pointer and the length
 //          is a good practice, after all we know from main() that 
 //          the buff variable will have exactly 50 bytes?
-//  
-//          PLACE YOUR ANSWER HERE
+
+/* I think that providing both the pointer and its length is good
+practice as it provides safety within the code. Explicitly passing
+the length lets you use it to detect any errors. */
