@@ -74,11 +74,13 @@ int count_words(char *buff, int len, int str_len){
     
     // count spaces in buff
     for (int i = 0; i < str_len; i++) {
-        if (*buff == ' ') word_count++;
+        if (*buff == ' ') {
+            word_count++;
+        }
         buff++;
     }
 
-    return word_count++;
+    return ++word_count;
 }
 
 //ADD OTHER HELPER FUNCTIONS HERE FOR OTHER REQUIRED PROGRAM OPTIONS
@@ -103,11 +105,11 @@ char *get_reverse(char *buff, int str_len) {
     return reverse;
 }
 
-void print_words(char *buff, int str_len) {
+int print_words(char *buff, int str_len) {
     int wc = 1;
     int cur_len = 0;
 
-    if (str_len < 0) return;
+    if (str_len < 0) return 0;
 
     printf("Word Print\n");
     printf("----------\n");
@@ -128,6 +130,7 @@ void print_words(char *buff, int str_len) {
     }
     
     printf(" (%d)\n", cur_len);
+    return wc;
 }
 
 int main(int argc, char *argv[]){

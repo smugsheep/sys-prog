@@ -22,20 +22,20 @@
     run ./stringfun -c "There should be eight words in this sentence"
     [ "$status" -eq 0 ]
     [ "$output" = "Word Count: 8
-Buffer:  [There should be eight words in this sentence......]" ]
+Buffer:  There should be eight words in this sentence......" ]
 }
 
 @test "remove extra spaces" {
     run ./stringfun -c "   The   strange    spaces    should   be     removed   from this    "
     [ "$status" -eq 0 ]
     [ "$output" = "Word Count: 8
-Buffer:  [The strange spaces should be removed from this....]" ]
+Buffer:  The strange spaces should be removed from this...." ]
 }
 
 @test "reverse" {
     run ./stringfun -r "Reversed sentences look very weird"
     [ "$status" -eq 0 ]
-    [ "$output" = "Buffer:  [driew yrev kool secnetnes desreveR................]" ]
+    [ "$output" = "Buffer:  driew yrev kool secnetnes desreveR................" ]
 }
 
 @test "print words" {
@@ -43,23 +43,23 @@ Buffer:  [The strange spaces should be removed from this....]" ]
     [ "$status" -eq 0 ]
     [ "$output" = "Word Print
 ----------
-1. Lets(4)
-2. get(3)
-3. a(1)
-4. lot(3)
-5. of(2)
-6. words(5)
-7. to(2)
-8. test(4)
+1. Lets (4)
+2. get (3)
+3. a (1)
+4. lot (3)
+5. of (2)
+6. words (5)
+7. to (2)
+8. test (4)
 
 Number of words returned: 8
-Buffer:  [Lets get a lot of words to test...................]" ]
+Buffer:  Lets get a lot of words to test..................." ]
 }
 
 @test "check max length" {
     run ./stringfun -r "This is the maximum length string that should work"
     [ "$status" -eq 0 ]
-    [ "$output" = "Buffer:  [krow dluohs taht gnirts htgnel mumixam eht si sihT]" ]
+    [ "$output" = "Buffer:  krow dluohs taht gnirts htgnel mumixam eht si sihT" ]
 }
 
 @test "check over max length" {
