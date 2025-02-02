@@ -59,7 +59,36 @@ int open_db(char *dbFile, bool should_truncate){
  *  console:  Does not produce any console I/O used by other functions
  */
 int get_student(int fd, int id, student_t *s){
-    return NOT_IMPLEMENTED_YET;
+    
+    // seek to student position in db
+
+    off_t offset = id * STUDENT_RECORD_SIZE;
+
+    if (lseek(fd, offset, SEEK_SET) == -1) {
+        printf(M_ERR_DB_READ);
+        return ERR_DB_FILE;
+    }
+
+    // try to read student and check if exists
+
+    ssize_t bytes_read = read(fd, s, STUDENT_RECORD_SIZE);
+
+    if (bytes_read == -1) {
+        printf(M_ERR_DB_READ);
+        return ERR_DB_FILE;
+    } else if (bytes_read == 0) {
+        printf(M_ERR_DB_READ);
+        return SRCH_NOT_FOUND;
+    }
+
+    // check if id is deleted
+
+    if (s->id == DELETED_STUDENT_ID) {
+        printf(M_ERR_DB_READ);
+        return SRCH_NOT_FOUND;
+    }
+
+    return NO_ERROR;
 }
 
 /*
@@ -88,8 +117,42 @@ int get_student(int fd, int id, student_t *s){
  *            
  */
 int add_student(int fd, int id, char *fname, char *lname, int gpa){
-    printf(M_NOT_IMPL);
-    return NOT_IMPLEMENTED_YET;
+    student_t student;
+
+    // check if student already exists
+
+    if (get_student(fd, id, &student) == NO_ERROR) {
+        printf(M_ERR_DB_ADD_DUP, id);
+        return ERR_DB_OP;
+    }
+
+    // record student record
+
+    student.id = id;
+    student.gpa = gpa;
+    strncpy(student.fname, fname, sizeof(student.fname) - 1);
+    strncpy(student.lname, lname, sizeof(student.lname) - 1);
+
+    // seek to position in file
+
+    off_t offset = id * STUDENT_RECORD_SIZE;
+
+    if (lseek(fd, offset, SEEK_SET) == -1) {
+        printf(M_ERR_DB_READ);
+        return ERR_DB_FILE;
+    }
+
+    // attempt to write student info
+
+    if (write(fd, &student, STUDENT_RECORD_SIZE) != STUDENT_RECORD_SIZE) {
+        printf(M_ERR_DB_WRITE);
+        return ERR_DB_FILE;
+    }
+
+    // on success
+
+    printf(M_STD_ADDED);
+    return NO_ERROR;
 }
 
 /*
