@@ -6,7 +6,79 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/wait.h>
+#include <errno.h> // Important for error handling with execvp and cd
 #include "dshlib.h"
+
+char *trim(char *str) {
+    char *start = str;
+    while (*start == ' ') { // go to first non-space char
+        start++;
+    }
+
+    if (*start == '\0') { // string is all spaces
+        return start;
+    }
+
+    char *end = str + strlen(str) - 1;
+    while (end > start && *end == ' ') {
+        end--;
+    }
+
+    end[1] = '\0';
+    return start;
+}
+
+int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff) {
+    if (!cmd_line || !cmd_buff) {
+        return ERR_CMD_OR_ARGS_TOO_BIG;
+    }
+
+    // // Allocate memory for the command buffer if it hasn't been already
+    if (cmd_buff->_cmd_buffer == NULL) {
+      cmd_buff->_cmd_buffer = malloc(SH_CMD_MAX);
+      if (cmd_buff->_cmd_buffer == NULL) {
+        return ERR_MEMORY;
+      }
+    }
+
+    clear_cmd_buff(cmd_buff);
+
+    strcpy(cmd_buff->_cmd_buffer, cmd_line); // copy line to trim
+    char *trimmed_line = trim(cmd_buff->_cmd_buffer);
+
+    char *token;
+    int i = 0;
+
+    token = strtok(trimmed_line, " ");
+    while (token != NULL && i < CMD_ARGV_MAX - 1) {
+        cmd_buff->argv[i++] = token;
+        token = strtok(NULL, " ");
+    }
+
+    cmd_buff->argv[i] = NULL;
+    cmd_buff->argc = i;
+
+    return OK;
+}
+
+int free_cmd_buff(cmd_buff_t *cmd_buff) {
+    if (cmd_buff->_cmd_buffer != NULL) {
+        free(cmd_buff->_cmd_buffer);
+        cmd_buff->_cmd_buffer = NULL;
+    }
+    return OK;
+}
+
+int clear_cmd_buff(cmd_buff_t *cmd_buff) {
+    cmd_buff->argc = 0;
+    if (cmd_buff->_cmd_buffer != NULL) {
+        cmd_buff->_cmd_buffer[0] = '\0';
+    }
+    for (int i = 0; i < CMD_ARGV_MAX; i++) {
+        cmd_buff->argv[i] = NULL;
+    }
+    return OK;
+}
 
 /*
  * Implement your exec_local_cmd_loop function by building a loop that prompts the 
@@ -53,19 +125,69 @@
  */
 int exec_local_cmd_loop()
 {
-    char *cmd_buff;
-    int rc = 0;
+    char cmd_buff[SH_CMD_MAX];
+    int rc = OK;
     cmd_buff_t cmd;
 
-    // TODO IMPLEMENT MAIN LOOP
+    while (1) {
+        printf("%s", SH_PROMPT);
 
-    // TODO IMPLEMENT parsing input to cmd_buff_t *cmd_buff
+        if (fgets(cmd_buff, SH_CMD_MAX, stdin) == NULL) {
+            printf("\n");
+            break;
+        }
 
-    // TODO IMPLEMENT if built-in command, execute builtin logic for exit, cd (extra credit: dragon)
-    // the cd command should chdir to the provided directory; if no directory is provided, do nothing
+        cmd_buff[strcspn(cmd_buff, "\n")] = '\0';
 
-    // TODO IMPLEMENT if not built-in command, fork/exec as an external command
-    // for example, if the user input is "ls -l", you would fork/exec the command "ls" with the arg "-l"
+        if (strlen(cmd_buff) == 0) {
+            printf("%s\n", CMD_WARN_NO_CMD);
+            rc = WARN_NO_CMDS;
+            continue;
+        }
 
-    return OK;
+
+        if (build_cmd_buff(cmd_buff, &cmd) != OK) {
+            rc = ERR_MEMORY;
+            continue;
+        }
+    
+        // exit
+        if (strcmp(cmd.argv[0], EXIT_CMD) == 0) {
+            break;
+        }
+        // cd
+        else if (strcmp(cmd.argv[0], "cd") == 0) {
+            if (cmd.argc == 1) {
+                chdir(getenv("HOME"));
+            } else if (cmd.argc == 2 ) {
+                if (chdir(cmd.argv[1]) != 0 ) {
+                    perror("cd");
+                }
+            } else {
+                fprintf(stderr, "%s\n", CMD_ERR_PIPE_LIMIT); 
+            }
+            continue;
+        }
+        // external
+        else {
+            pid_t pid = fork();
+
+            if (pid == 0) {
+                execvp(cmd.argv[0], cmd.argv);
+                perror("execvp"); 
+                exit(1);  
+            }
+            else if (pid < 0) {
+                perror("fork");
+            }
+            else {
+                int status;
+                waitpid(pid, &status, 0); // parent process
+            }
+        }
+
+    }
+    
+    free_cmd_buff(&cmd);
+    return rc;
 }
