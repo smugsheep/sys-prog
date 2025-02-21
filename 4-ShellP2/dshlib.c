@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/wait.h>
-#include <errno.h> // Important for error handling with execvp and cd
+#include <errno.h>
 #include "dshlib.h"
 
 /*
@@ -78,25 +78,27 @@ int exec_local_cmd_loop()
         // remove the trailing newline
         cmd_buff[strcspn(cmd_buff, "\n")] = '\0';
 
+        // if no cmd
         if (strlen(cmd_buff) == 0) {
             printf("%s\n", CMD_WARN_NO_CMD);
             rc = WARN_NO_CMDS;
             continue;
         }
 
+        // attempt to build cmd buff
         if (build_cmd_buff(cmd_buff, &cmd) != OK) {
             rc = ERR_MEMORY;
             continue;
         }
     
-        // exit
+        // exit cmd
         if (strcmp(cmd.argv[0], EXIT_CMD) == 0) {
             break;
         }
-        // cd
+        // cd cmd
         else if (strcmp(cmd.argv[0], "cd") == 0) {
             char *dir;
-
+            // if cd has arg or not
             if (cmd.argc > 1) {
                 dir = cmd.argv[1];
             } else {
@@ -109,7 +111,7 @@ int exec_local_cmd_loop()
 
             continue;
         }
-        // external
+        // external cmd
         else {
             pid_t pid = fork();
 
@@ -190,7 +192,7 @@ int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff) {
 		len--;
     }
 
-    // tokenize (quoted spaces make me go crazy)
+    // tokenize (respect quotes)
 
     char *start_token = trimmed_line;
     int i = 0;
@@ -209,7 +211,7 @@ int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff) {
         }
     }
 
-    // handle last token and remove da quotes
+    // handle token and quotes(if needed)
 
     if (start_token != trimmed_line + len) {
         if (*start_token == '"') {
