@@ -2,7 +2,7 @@
 
     > **Answer**:  `execvp` replaces the current process image with the new program. If we were to call it directly, the shell itself would be replaced by the executed command, and the shell would terminate. This is no good. `fork` creates a new process that is a copy of the shell, allowing the shell to execute further commands after the child process completes (the `execvp` call replaces the child process's image with the requested program).
 
-2. What happens if the fork() system call fails? How does your implementation handle this scenario?
+2. What happens if the fork() system call fails? How does your implementation handle this scenario? 
 
     > **Answer**:  If `fork()` fails, it returns a negative value. In my implementation, the parent process checks the return value of `fork()`: if it's less than 0, the code calls `perror("fork")` to print an error message to stderr.
 
