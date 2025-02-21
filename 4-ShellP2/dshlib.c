@@ -123,7 +123,7 @@ int exec_local_cmd_loop()
             }
             else {
                 int status;
-                waitpid(pid, &status, 0); // parent process
+                wait(&status);
             }
         }
 
@@ -175,6 +175,8 @@ int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff) {
 
     clear_cmd_buff(cmd_buff);
 
+    // trim lead / end space from line
+
     strcpy(cmd_buff->_cmd_buffer, cmd_line);
     char *trimmed_line = cmd_buff->_cmd_buffer;
 
@@ -187,6 +189,8 @@ int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff) {
         trimmed_line[len - 1] = '\0';
 		len--;
     }
+
+    // tokenize (quoted spaces make me go crazy)
 
     char *start_token = trimmed_line;
     int i = 0;
@@ -205,7 +209,8 @@ int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff) {
         }
     }
 
-    // im gonna go crazy
+    // handle last token and remove da quotes
+
     if (start_token != trimmed_line + len) {
         if (*start_token == '"') {
             start_token++;
