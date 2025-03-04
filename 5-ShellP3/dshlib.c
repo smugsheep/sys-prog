@@ -57,11 +57,11 @@ int exec_local_cmd_loop()
 {
     char *cmd_buff;
     int rc = 0;
-    cmd_buff_t cmd;
+    command_list_t cmd_list;
 
     cmd_buff = malloc(SH_CMD_MAX);
     
-    if (alloc_cmd_buff(&cmd) != OK) {
+    if (!cmd_buff) {
         return ERR_MEMORY;
     }
 
@@ -85,22 +85,26 @@ int exec_local_cmd_loop()
             continue;
         }
 
-        // attempt to build cmd buff
-        if (build_cmd_buff(cmd_buff, &cmd) != OK) {
-            rc = ERR_MEMORY;
+        // attempt to build cmd list
+        rc = build_cmd_list(cmd_buff, &cmd_list);
+        if (rc != OK) {
+            if (rc == ERR_TOO_MANY_COMMANDS) {
+                printf(CMD_ERR_PIPE_LIMIT, CMD_MAX);
+            }
             continue;
         }
     
         // exit cmd
-        if (strcmp(cmd.argv[0], EXIT_CMD) == 0) {
+        if (cmd_list.num > 0 && strcmp(cmd_list.commands[0].argv[0], EXIT_CMD) == 0) {
+            printf("exiting...\n");
             break;
         }
         // cd cmd
-        else if (strcmp(cmd.argv[0], "cd") == 0) {
+        else if (cmd_list.num > 0 && strcmp(cmd_list.commands[0].argv[0], "cd") == 0) {
             char *dir;
             // if cd has arg or not
-            if (cmd.argc > 1) {
-                dir = cmd.argv[1];
+            if (cmd_list.commands[0].argc > 1) {
+                dir = cmd_list.commands[0].argv[1];
             } else {
                 dir = getenv("HOME");
             }
@@ -109,29 +113,16 @@ int exec_local_cmd_loop()
                 perror("cd");
             }
 
+            free_cmd_list(&cmd_list);
             continue;
         }
-        // external cmd
-        else {
-            pid_t pid = fork();
 
-            if (pid == 0) {
-                execvp(cmd.argv[0], cmd.argv);
-                perror("execvp");
-                exit(1);
-            }
-            else if (pid < 0) {
-                perror("fork");
-            }
-            else {
-                int status;
-                wait(&status);
-            }
-        }
-
+        // execute pipeline
+        execute_pipeline(&cmd_list);
+        free_cmd_list(&cmd_list);
     }
     
-    free_cmd_buff(&cmd);
+    free(cmd_buff);
     return rc;
 }
 
@@ -229,3 +220,125 @@ int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff) {
 
     return OK;
 }
+
+
+int build_cmd_list(char *cline, command_list_t *clist) {
+    if (!cline || !clist) {
+        return ERR_CMD_OR_ARGS_TOO_BIG;
+    }
+
+    clist->num = 0;
+    char *cmd;
+    char *token = strtok(cline, PIPE_STRING);
+
+    // loop thru
+
+    while (token != NULL && clist->num < CMD_MAX) {
+        cmd = token;
+
+        while (*cmd == ' ') {
+            cmd++;
+        }
+
+        // attempt 2 alloc and build cmd buff
+
+        if (alloc_cmd_buff(&clist->commands[clist->num]) != OK) {
+            free_cmd_list(clist);
+            return ERR_MEMORY;
+        }
+
+        if (build_cmd_buff(cmd, &clist->commands[clist->num]) != OK) {
+            free_cmd_list(clist);
+            return ERR_MEMORY;
+        }
+
+        clist->num++;
+        token = strtok(NULL, PIPE_STRING);
+    }
+
+    // edge case
+
+    if (token != NULL) {
+        return ERR_TOO_MANY_COMMANDS;
+    }
+
+    return OK;
+}
+
+
+int free_cmd_list(command_list_t *clist) {
+    for (int i = 0; i < clist->num; i++) {
+        free_cmd_buff(&clist->commands[i]);
+    }
+
+    clist->num = 0;
+    return OK;
+}
+
+
+int execute_pipeline(command_list_t *clist) {
+    int num_cmds = clist->num;
+    int pipe_fds[2 * (num_cmds - 1)];
+
+    // create da pipes
+    
+    for (int i = 0; i < num_cmds; i++) {
+        if (pipe(&pipe_fds[i * 2]) < 0) {
+            perror("pipe");
+            return ERR_EXEC_CMD;
+        }
+    }
+
+    // execute pipeline of cmds (refactor last week code)
+
+    int i;
+    pid_t pid;
+
+    for (i = 0; i < num_cmds; i++) {
+        pid = fork();
+
+        if (pid == 0) { // child
+            if (i > 0) { // redir input
+                if (dup2(pipe_fds[(i - 1) * 2], STDIN_FILENO) < 0) {
+                    perror("dup2 stdin");
+                    exit(1);
+                }
+            }
+            
+            if (i < num_cmds - 1) { // redir output
+                if (dup2(pipe_fds[i * 2 + 1], STDOUT_FILENO) < 0) {
+                    perror("dup2 stdout");
+                    exit(1);
+                }
+            }
+
+            for (int j = 0; j < 2*(num_cmds-1); j++) { // close
+                close(pipe_fds[j]);
+            }
+
+            // exec cmd
+            execvp(clist->commands[i].argv[0], clist->commands[i].argv);
+            perror("execvp");
+            exit(1);
+        }
+
+        else if (pid < 0) {
+            perror("fork");
+            return ERR_EXEC_CMD;
+        }
+    }
+
+    int status;
+
+    for (int j = 0; j < 2*(num_cmds-1); j++) {
+        close(pipe_fds[j]);
+    }
+
+    for (i = 0; i < num_cmds; i++) {
+        wait(&status);
+    }
+
+    return OK;
+}
+
+
