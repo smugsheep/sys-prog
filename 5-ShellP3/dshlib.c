@@ -279,6 +279,7 @@ int free_cmd_list(command_list_t *clist) {
 int execute_pipeline(command_list_t *clist) {
     int num_cmds = clist->num;
     int pipe_fds[2 * (num_cmds - 1)];
+    pid_t child_pids[num_cmds];
 
     // create da pipes
     
@@ -326,6 +327,10 @@ int execute_pipeline(command_list_t *clist) {
             perror("fork");
             return ERR_EXEC_CMD;
         }
+
+        else {
+            child_pids[i] = pid;
+        }
     }
 
     int status;
@@ -335,7 +340,12 @@ int execute_pipeline(command_list_t *clist) {
     }
 
     for (i = 0; i < num_cmds; i++) {
-        wait(&status);
+        pid_t child_pid = waitpid(child_pids[i], &status, 0);
+
+        if (child_pid == -1) {
+            perror("waitpid");
+            return ERR_EXEC_CMD;
+        }
     }
 
     return OK;
