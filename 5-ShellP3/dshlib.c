@@ -299,14 +299,14 @@ int execute_pipeline(command_list_t *clist) {
 
         if (pid == 0) { // child
             if (i > 0) { // redir input
-                if (dup2(pipe_fds[(i - 1) * 2], STDIN_FILENO) < 0) {
+                if (dup2(pipe_fds[(i - 1) * 2], 0) < 0) {
                     perror("dup2 stdin");
                     exit(1);
                 }
             }
             
             if (i < num_cmds - 1) { // redir output
-                if (dup2(pipe_fds[i * 2 + 1], STDOUT_FILENO) < 0) {
+                if (dup2(pipe_fds[i * 2 + 1], 1) < 0) {
                     perror("dup2 stdout");
                     exit(1);
                 }
