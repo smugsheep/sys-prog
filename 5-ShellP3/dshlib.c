@@ -58,6 +58,7 @@ int exec_local_cmd_loop()
     char *cmd_buff;
     int rc = 0;
     command_list_t cmd_list;
+    Built_In_Cmds bi_cmd;
 
     cmd_buff = malloc(SH_CMD_MAX);
     
@@ -93,14 +94,17 @@ int exec_local_cmd_loop()
             }
             continue;
         }
+
+        bi_cmd = match_command(cmd_list.commands[0].argv[0]);
     
         // exit cmd
-        if (cmd_list.num > 0 && strcmp(cmd_list.commands[0].argv[0], EXIT_CMD) == 0) {
+        if (bi_cmd == BI_CMD_EXIT) {
+            free_cmd_list(&cmd_list);
             printf("exiting...\n");
             break;
         }
         // cd cmd
-        else if (cmd_list.num > 0 && strcmp(cmd_list.commands[0].argv[0], "cd") == 0) {
+        else if (bi_cmd == BI_CMD_CD) {
             char *dir;
             // if cd has arg or not
             if (cmd_list.commands[0].argc > 1) {
@@ -222,6 +226,17 @@ int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff) {
 }
 
 
+Built_In_Cmds match_command(const char *input) {
+    if (strcmp(input, EXIT_CMD) == 0) {
+        return BI_CMD_EXIT;
+    } else if (strcmp(input, "cd") == 0) {
+        return BI_CMD_CD;
+    } else {
+        return BI_NOT_BI;
+    }
+}
+
+
 int build_cmd_list(char *cline, command_list_t *clist) {
     if (!cline || !clist) {
         return ERR_CMD_OR_ARGS_TOO_BIG;
@@ -280,6 +295,7 @@ int execute_pipeline(command_list_t *clist) {
     int num_cmds = clist->num;
     int pipe_fds[2 * (num_cmds - 1)];
     pid_t child_pids[num_cmds];
+    Built_In_Cmds bi_cmd;
 
     // create da pipes
     
@@ -296,6 +312,12 @@ int execute_pipeline(command_list_t *clist) {
     pid_t pid;
 
     for (i = 0; i < num_cmds; i++) {
+        bi_cmd = match_command(clist->commands[i].argv[0]);
+
+        if (bi_cmd == BI_CMD_EXIT) {
+            break;
+        }
+
         pid = fork();
 
         if (pid == 0) { // child
