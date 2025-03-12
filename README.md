@@ -1,1 +1,1 @@
-cs283, systems programming, winter '25, brian mitchell.
+cs283 systems programming w/ brian mitchell (winter '25)
